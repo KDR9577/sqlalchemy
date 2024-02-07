@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
 
 from flask import Flask, jsonify
+import datetime as dt
 
 #################################################
 # Database Setup
@@ -14,14 +15,14 @@ from flask import Flask, jsonify
 engine = create_engine("sqlite:///Resources/hawaii.sqlite")
 
 # reflect an existing database into a new model
-Base = automap_base(engine)
+Base = automap_base()
 
 # reflect the tables
 Base.prepare(autoload_with=engine)
-Base.classes.keys()
+
 # Save references to each table
 Msmnt = Base.classes.measurement
-Stn = Base.classes.hawaii_station
+Stn = Base.classes.station
 
 # Create our session (link) from Python to the DB
 session = Session(engine)
@@ -43,47 +44,59 @@ def start():
 
     #session link
     session = Session(engine)
-
+    return (
+        f"Kenny Ross<br/>"
+        f"/api/v1.0/precipitation<br/>"
+        f"/api/v1.0/stations<br/>"
+    )
 @app.route("/api/v1.0/precipitation")
-def precipitation(precipitation):
+def precipitation():
 
     #session link
     session = Session(engine)
-
+    previous = dt.date(2017, 8, 23) - dt.timedelta(days=365)
     #Convert the query results from your precipitation analysis (i.e. retrieve only the last 12 months of data).
-    sel = [Msmnt.prcp, Msmnt.date]
+    sel = [Msmnt.date, Msmnt.prcp]
 
     year_prcp = session.query(*sel).\
-        filter(Msmnt.prcp <= (2017, 8, 23)).all()
+        filter(Msmnt.date <= previous).all()
 
     session.close()
 
     #Convert to a dictionary using date as the key and prcp as the value.
-    data = []
-    for prcp in year_prcp:
-        data_dict={"date": "prcp"}
+    results = {date: prcp for date, prcp in year_prcp}
 
-    return jsonify(data)
+    return jsonify(results)
 
 @app.route("/api/v1.0/stations")
-def stations(stations):
+def stations():
 
     #session link
     session = Session(engine)
+    results = session.query(Stn.station).all()
 
     #Return a JSON list of stations from the dataset.
-    stations = []
+    stations = list(np.ravel(results))
 
     session.close()
 
-    return jsonify(stations)
+    return jsonify(stations=stations)
 
 @app.route("/api/v1.0/tobs")
-def temps_tobs(temps, tobs):
-
+def temps_tobs():
+    
     #Query the dates and temperature observations of the most-active station for the previous year of data.
         
     #Return a JSON list of temperature observations for the previous year.
+    session = Session(engine)
+    results = session.query(Stn.station).all()
+
+    #Return a JSON list of stations from the dataset.
+    tobs = list(np.ravel(results))
+
+    session.close()
+
+    return jsonify(tobs=tobs)
 
 @app.route("/api/v1.0/<start>")
 def begin_date(begin):
@@ -101,13 +114,8 @@ def begin_date(begin):
     session.close()
 
     #convert to JSON
-    temp_stats = []
 
-    for min, max, avg in stats.append():
-        temp_stats_dict = {}
-        temp_stats_dict["min"] = min
-        temp_stats_dict["max"] = max
-        temp_stats_dict["avg"] = avg
+    results = list(np.ravel(stats))
 
     return jsonify(results)
 
@@ -121,7 +129,10 @@ def end_date(end):
     sel = [func.min(Msmnt.tobs), func.max(Msmnt.tobs), func.avg(Msmnt.tobs)]
 
     #For a specified start date and end date, calculate TMIN, TAVG, and TMAX for the dates from the start date to the end date, inclusive.
-    all_stats = session.query(*sel).\
-        filter(Msmnt.date <= start and >= begin).all()
+    # all_stats = session.query(*sel).\
+    #     filter(Msmnt.date <= start and >= begin).all()
     
     session.close
+
+if __name__ == '__main__':
+    app.run(debug=True)
