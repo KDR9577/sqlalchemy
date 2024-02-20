@@ -45,9 +45,12 @@ def start():
     #session link
     session = Session(engine)
     return (
-        f"Kenny Ross<br/>"
+
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
+        f"/api/v1.0/tobs<br/>"
+        f"/api/v1.0/begin_date<br/>"
+        f"/api/v1.0/begin_date/end_date"
     )
 @app.route("/api/v1.0/precipitation")
 def precipitation():
@@ -83,23 +86,25 @@ def stations():
     return jsonify(stations=stations)
 
 @app.route("/api/v1.0/tobs")
-def temps_tobs():
+def tobs():
     
-    #Query the dates and temperature observations of the most-active station for the previous year of data.
-        
-    #Return a JSON list of temperature observations for the previous year.
+    #session link
     session = Session(engine)
-    results = session.query(Stn.station).all()
-
-    #Return a JSON list of stations from the dataset.
+    #Query the dates and temperature observations of the most-active station for the previous year of data.
+    year = dt.date(2017, 8, 23) - dt.timedelta(days=365)
+    
+    results = session.query(Msmnt.date, Msmnt.tobs).\
+        filter(Msmnt.date >= year, Msmnt.station =='USC00519281').all()
+    
+    #Return a JSON list of temperature observations for the previous year.
     tobs = list(np.ravel(results))
 
     session.close()
 
     return jsonify(tobs=tobs)
 
-@app.route("/api/v1.0/<start>")
-def begin_date(begin):
+@app.route("/api/v1.0/begin_date")
+def begin_date():
 
     #create session link
     session = Session(engine)
@@ -108,8 +113,9 @@ def begin_date(begin):
     sel = [func.min(Msmnt.tobs), func.max(Msmnt.tobs), func.avg(Msmnt.tobs)]
 
     #For a specified start, calculate TMIN, TAVG, and TMAX for all the dates greater than or equal to the start date.
+    begin_date = 2014-1-1
     stats = session.query(*sel).\
-        filter(Msmnt.date >= begin).all()
+        filter(Msmnt.date >= begin_date).all()
     
     session.close()
 
@@ -117,10 +123,10 @@ def begin_date(begin):
 
     results = list(np.ravel(stats))
 
-    return jsonify(results)
+    return jsonify(results=results)
 
-@app.route("/api/v1.0/<start>/<end>")
-def end_date(end):
+@app.route("/api/v1.0/begin_date/end_date")
+def end_date():
     
     #create session link
     session = Session(engine)
@@ -129,10 +135,16 @@ def end_date(end):
     sel = [func.min(Msmnt.tobs), func.max(Msmnt.tobs), func.avg(Msmnt.tobs)]
 
     #For a specified start date and end date, calculate TMIN, TAVG, and TMAX for the dates from the start date to the end date, inclusive.
-    # all_stats = session.query(*sel).\
-    #     filter(Msmnt.date <= start and >= begin).all()
+    end_date = 2016-12-31
+    all_stats = session.query(*sel).\
+        filter(Msmnt.date <= end_date).all().\
+        filter(Msmnt.date >= 2014-1-1).all()
     
     session.close
+
+    results = list(np.ravel(all_stats))
+
+    return jsonify(results=results)
 
 if __name__ == '__main__':
     app.run(debug=True)
