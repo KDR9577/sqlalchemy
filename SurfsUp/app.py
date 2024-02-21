@@ -57,12 +57,12 @@ def precipitation():
 
     #session link
     session = Session(engine)
-    previous = dt.date(2017, 8, 23) - dt.timedelta(days=365)
+    previous_year = dt.date(2017, 8, 23) - dt.timedelta(days=365)
     #Convert the query results from your precipitation analysis (i.e. retrieve only the last 12 months of data).
     sel = [Msmnt.date, Msmnt.prcp]
 
     year_prcp = session.query(*sel).\
-        filter(Msmnt.date <= previous).all()
+        filter(Msmnt.date >= previous_year).all()
 
     session.close()
 
@@ -135,14 +135,14 @@ def end_date():
     sel = [func.min(Msmnt.tobs), func.max(Msmnt.tobs), func.avg(Msmnt.tobs)]
 
     #For a specified start date and end date, calculate TMIN, TAVG, and TMAX for the dates from the start date to the end date, inclusive.
-    end_date = 2016-12-31
-    all_stats = session.query(*sel).\
-        filter(Msmnt.date <= end_date).all().\
-        filter(Msmnt.date >= 2014-1-1).all()
+    range = dt.date(2015, 12, 31) - dt.date(2012, 1, 1)
+    
+    stats = session.query(*sel).\
+        filter(Msmnt.date >= range).all()
     
     session.close
 
-    results = list(np.ravel(all_stats))
+    results = list(np.ravel(stats))
 
     return jsonify(results=results)
 
